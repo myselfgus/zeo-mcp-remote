@@ -17,17 +17,17 @@ interface Env {
 type AnyArray = any[];
 type AnyObject = any;
 
-// 🚀 COGN - UNIFIED MCP SERVER
-// 21 Real Tools based on researched MCP servers
+// 🚀 ZEO - UNIFIED MCP SERVER
+// 23 Real Tools with real storage implementations
 // Template: Official Cloudflare MCP Remote Server
-export class CognMCP extends McpAgent {
+export class ZeoMCP extends McpAgent {
 	server = new McpServer({
-		name: "Cogn - Unified Development Assistant",
+		name: "Zeo - Unified Development Assistant",
 		version: "1.0.0",
 	});
 
 	async init() {
-		console.log("🚀 Initializing Cogn MCP Server with 23 real tools...");
+		console.log("🚀 Initializing Zeo MCP Server with 23 real tools...");
 		
 		// ===== 🧠 REASONING & INTELLIGENCE (4 tools) =====
 		await this.initReasoningTools();
@@ -53,7 +53,7 @@ export class CognMCP extends McpAgent {
 		// ===== 🆕 CREATIVE INTELLIGENCE (2 tools) =====
 		await this.initCreativeIntelligenceTools();
 
-		console.log("✅ Cogn MCP Server initialized with 23 specialized tools!");
+		console.log("✅ Zeo MCP Server initialized with 23 specialized tools!");
 	}
 
 	// ===== 🧠 REASONING & INTELLIGENCE =====
@@ -2083,19 +2083,19 @@ export default {
 
 		// MCP SSE endpoint for Claude.ai integration
 		if (url.pathname === "/sse" || url.pathname === "/sse/message") {
-			return CognMCP.serveSSE("/sse").fetch(request, env, ctx);
+			return ZeoMCP.serveSSE("/sse").fetch(request, env, ctx);
 		}
 
 		// Alternative MCP endpoint
 		if (url.pathname === "/mcp") {
-			return CognMCP.serve("/mcp").fetch(request, env, ctx);
+			return ZeoMCP.serve("/mcp").fetch(request, env, ctx);
 		}
 
 		// Health check endpoint
 		if (url.pathname === "/health") {
 			return new Response(JSON.stringify({
 				status: "healthy",
-				server: "Cogn - Unified Development Assistant", 
+				server: "Zeo - Unified Development Assistant", 
 				version: "1.0.0",
 				tools: 23,
 				timestamp: new Date().toISOString()
@@ -2107,7 +2107,7 @@ export default {
 		// Documentation endpoint
 		if (url.pathname === "/") {
 			return new Response(`
-				<h1>🚀 Cogn - Unified MCP Server</h1>
+				<h1>🚀 Zeo - Unified MCP Server</h1>
 				<p>Advanced AI-powered development assistant with 23 specialized tools</p>
 				<h2>Endpoints:</h2>
 				<ul>
