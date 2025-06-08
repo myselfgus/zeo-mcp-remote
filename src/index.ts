@@ -2,6 +2,21 @@ import { McpAgent } from "agents/mcp";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
+// Cloudflare Worker Environment interface
+interface Env {
+	OAUTH_KV: KVNamespace;
+	KV_STORAGE: KVNamespace;
+	D1_DATABASE: D1Database;
+	R2_BUCKET: R2Bucket;
+	AI: any;
+	MCP_OBJECT: DurableObjectNamespace;
+	[key: string]: any;
+}
+
+// Quick type fix for initial deployment
+type AnyArray = any[];
+type AnyObject = any;
+
 // 🚀 COGN - UNIFIED MCP SERVER
 // 21 Real Tools based on researched MCP servers
 // Template: Official Cloudflare MCP Remote Server
@@ -58,7 +73,7 @@ export class CognMCP extends McpAgent {
 					problem,
 					strategy,
 					started_at: new Date(),
-					iterations: []
+					iterations: [] as AnyArray
 				};
 
 				switch (strategy) {
@@ -107,9 +122,9 @@ export class CognMCP extends McpAgent {
 					scope,
 					timeframe,
 					current_state: "Analysis in progress...",
-					opportunities: [],
-					risks: [],
-					recommendations: [],
+					opportunities: [] as AnyArray,
+					risks: [] as AnyArray,
+					recommendations: [] as AnyArray,
 					confidence: 0.85,
 					timestamp: new Date()
 				};
@@ -151,12 +166,12 @@ export class CognMCP extends McpAgent {
 						anti_patterns: ["God Class", "Spaghetti Code"],
 						architectural_patterns: ["MVC", "Repository"]
 					},
-					recommendations: [],
+					recommendations: [] as AnyArray,
 					refactoring_suggestions: include_refactoring ? [
 						"Extract method for large functions",
 						"Apply dependency injection",
 						"Implement interface segregation"
-					] : [],
+					] : [] as AnyArray,
 					complexity_score: Math.random() * 10,
 					timestamp: new Date()
 				};
@@ -185,7 +200,7 @@ export class CognMCP extends McpAgent {
 					criteria,
 					options,
 					weights: weights || criteria.map(() => 1),
-					evaluation_matrix: {},
+					evaluation_matrix: {} as AnyObject,
 					recommended_option: "",
 					confidence: 0.0,
 					reasoning: "",
@@ -221,7 +236,7 @@ export class CognMCP extends McpAgent {
 
 	// ===== 📂 SMART FILE SYSTEM =====
 	private async initFileSystemTools() {
-		// 5. intelligent_file_ops - AI-enhanced file operations with pattern analysis
+		// 5. intelligent_file_ops - Real R2 Bucket file operations with AI analysis
 		this.server.tool(
 			"intelligent_file_ops",
 			{
@@ -232,50 +247,196 @@ export class CognMCP extends McpAgent {
 				include_analysis: z.boolean().default(true).describe("Enable AI-powered analysis: structure detection, complexity metrics, pattern recognition, quality assessment. Adds computational cost but provides valuable insights"),
 			},
 			async ({ operation, paths, content, search_query, include_analysis }) => {
-				const result = {
-					operation,
-					paths,
-					results: [],
-					analysis: null,
-					timestamp: new Date()
-				};
+				try {
+					const env = this.env as Env;
+					const result = {
+						operation,
+						paths,
+						results: [] as AnyArray,
+						analysis: null as AnyObject,
+						timestamp: new Date(),
+						storage_backend: "cloudflare_r2"
+					};
 
-				switch (operation) {
-					case "read":
-						result.results = paths.map(path => ({
-							path,
-							content: `// Simulated content of ${path}`,
-							size: Math.floor(Math.random() * 10000),
-							encoding: "utf-8"
-						}));
-						break;
-					
-					case "search":
-						result.results = [{
-							query: search_query,
-							matches: paths.map(path => ({
-								file: path,
-								line: Math.floor(Math.random() * 100),
-								context: `Found "${search_query}" in ${path}`
-							}))
-						}];
-						break;
-				}
+					switch (operation) {
+						case "read":
+							const read_results = [] as AnyArray;
+							for (const path of paths) {
+								try {
+									const file_object = await env.R2_BUCKET.get(path);
+									if (file_object) {
+										const file_content = await file_object.text();
+										read_results.push({
+											path,
+											content: file_content,
+											size: file_object.size,
+											last_modified: file_object.uploaded,
+											content_type: file_object.httpMetadata?.contentType || "text/plain",
+											success: true
+										});
+									} else {
+										read_results.push({
+											path,
+											error: "File not found in R2 bucket",
+											success: false
+										});
+									}
+								} catch (error) {
+									read_results.push({
+										path,
+										error: (error as Error).message,
+										success: false
+									});
+								}
+							}
+							result.results = read_results;
+							break;
+						
+						case "write":
+							const write_results = [] as AnyArray;
+							for (const path of paths) {
+								try {
+									if (!content) {
+										write_results.push({
+											path,
+											error: "Content required for write operation",
+											success: false
+										});
+										continue;
+									}
 
-				if (include_analysis) {
-					result.analysis = {
-						file_types: paths.map(p => p.split('.').pop()),
-						complexity: "medium",
-						patterns: ["modular", "well-structured"]
+									await env.R2_BUCKET.put(path, content, {
+										httpMetadata: {
+											contentType: path.endsWith('.json') ? 'application/json' : 
+														path.endsWith('.js') || path.endsWith('.ts') ? 'application/javascript' :
+														path.endsWith('.md') ? 'text/markdown' : 'text/plain'
+										}
+									});
+
+									write_results.push({
+										path,
+										content_length: content.length,
+										written_at: new Date().toISOString(),
+										success: true
+									});
+								} catch (error) {
+									write_results.push({
+										path,
+										error: (error as Error).message,
+										success: false
+									});
+								}
+							}
+							result.results = write_results;
+							break;
+						
+						case "search":
+							if (!search_query) {
+								result.results = [{ error: "Search query required" }];
+								break;
+							}
+
+							// List objects in R2 bucket and search content
+							const list_result = await env.R2_BUCKET.list({ prefix: paths[0] || "", limit: 100 });
+							const search_matches = [] as AnyArray;
+
+							for (const object of list_result.objects) {
+								try {
+									const file_content = await env.R2_BUCKET.get(object.key);
+									if (file_content) {
+										const content_text = await file_content.text();
+										if (content_text.toLowerCase().includes(search_query.toLowerCase())) {
+											const lines = content_text.split('\n');
+											const matching_lines = lines
+												.map((line, index) => ({ line: line.trim(), number: index + 1 }))
+												.filter(({ line }) => line.toLowerCase().includes(search_query.toLowerCase()));
+
+											search_matches.push({
+												file: object.key,
+												matches: matching_lines.slice(0, 5), // Limit to 5 matches per file
+												total_matches: matching_lines.length,
+												file_size: object.size,
+												last_modified: object.uploaded
+											});
+										}
+									}
+								} catch (error) {
+									// Skip files that can't be read as text
+								}
+							}
+
+							result.results = [{
+								query: search_query,
+								total_files_searched: list_result.objects.length,
+								files_with_matches: search_matches.length,
+								matches: search_matches
+							}];
+							break;
+
+						case "analyze":
+							const analyze_results = [] as AnyArray;
+							for (const path of paths) {
+								try {
+									const file_object = await env.R2_BUCKET.get(path);
+									if (file_object) {
+										const file_content = await file_object.text();
+										const lines = file_content.split('\n');
+										const words = file_content.split(/\s+/).length;
+										
+										analyze_results.push({
+											path,
+											size: file_object.size,
+											lines: lines.length,
+											words: words,
+											characters: file_content.length,
+											file_type: path.split('.').pop() || 'unknown',
+											last_modified: file_object.uploaded,
+											analysis_complete: true
+										});
+									} else {
+										analyze_results.push({
+											path,
+											error: "File not found for analysis",
+											success: false
+										});
+									}
+								} catch (error) {
+									analyze_results.push({
+										path,
+										error: (error as Error).message,
+										success: false
+									});
+								}
+							}
+							result.results = analyze_results;
+							break;
+					}
+
+					if (include_analysis && result.results.length > 0) {
+						const successful_results = result.results.filter((r: any) => r.success !== false);
+						result.analysis = {
+							operation_success_rate: (successful_results.length / result.results.length * 100).toFixed(1) + '%',
+							file_types: [...new Set(result.results.map((r: any) => r.path?.split('.').pop()).filter(Boolean))],
+							total_files_processed: result.results.length,
+							storage_backend_used: "cloudflare_r2",
+							processing_time: Date.now() - result.timestamp.getTime() + 'ms'
+						};
+					}
+
+					return {
+						content: [{
+							type: "text",
+							text: `File Operations Result:\n\n${JSON.stringify(result, null, 2)}`
+						}]
+					};
+				} catch (error) {
+					return {
+						content: [{
+							type: "text",
+							text: `File Operations Error:\n\n${JSON.stringify({ operation, error: (error as Error).message }, null, 2)}`
+						}]
 					};
 				}
-
-				return {
-					content: [{
-						type: "text",
-						text: `File Operations Result:\n\n${JSON.stringify(result, null, 2)}`
-					}]
-				};
 			}
 		);
 
@@ -292,9 +453,9 @@ export class CognMCP extends McpAgent {
 					root_path,
 					action,
 					depth,
-					structure: {},
-					dependencies: [],
-					insights: {},
+					structure: {} as AnyObject,
+					dependencies: [] as AnyArray,
+					insights: {} as AnyObject,
 					timestamp: new Date()
 				};
 
@@ -342,8 +503,8 @@ export class CognMCP extends McpAgent {
 						test_coverage: Math.random() * 100,
 						complexity: Math.random() * 10,
 						maintainability: Math.random() * 100
-					} : null,
-					issues: [],
+					} : null as AnyObject,
+					issues: [] as AnyArray,
 					recommendations: [
 						"Add more unit tests",
 						"Reduce code complexity",
@@ -377,7 +538,7 @@ export class CognMCP extends McpAgent {
 					target_format,
 					options,
 					transformed_content: "",
-					improvements: [],
+					improvements: [] as AnyArray,
 					timestamp: new Date()
 				};
 
@@ -422,8 +583,8 @@ export class CognMCP extends McpAgent {
 				const result = {
 					action,
 					repository: `${owner}/${repo}`,
-					data: null,
-					analysis: null,
+					data: null as AnyObject,
+					analysis: null as AnyObject,
 					timestamp: new Date()
 				};
 
@@ -477,9 +638,9 @@ export class CognMCP extends McpAgent {
 				const result = {
 					url,
 					action,
-					content: null,
-					analysis: null,
-					extracted_data: null,
+					content: null as AnyObject,
+					analysis: null as AnyObject,
+					extracted_data: null as AnyObject,
 					timestamp: new Date()
 				};
 
@@ -552,8 +713,8 @@ export class CognMCP extends McpAgent {
 				const result = {
 					operation,
 					success: true,
-					output: null,
-					error: null,
+					output: null as AnyObject,
+					error: null as AnyObject,
 					timestamp: new Date()
 				};
 
@@ -617,7 +778,7 @@ export class CognMCP extends McpAgent {
 
 	// ===== 💾 MEMORY & KNOWLEDGE =====
 	private async initMemoryTools() {
-		// 12. persistent_memory_engine - Based on mcp-memory-service
+		// 12. persistent_memory_engine - Real KV Storage + D1 Database implementation
 		this.server.tool(
 			"persistent_memory_engine",
 			{
@@ -629,68 +790,153 @@ export class CognMCP extends McpAgent {
 				context: z.record(z.any()).default({}).describe("Additional context"),
 			},
 			async ({ action, content, query, memory_id, tags, context }) => {
-				const result = {
-					action,
-					success: true,
-					data: null,
-					metadata: {
-						timestamp: new Date(),
-						session_id: "current_session",
-						vector_similarity: null
+				try {
+					const env = this.env as Env;
+					const result = {
+						action,
+						success: true,
+						data: null as AnyObject,
+						metadata: {
+							timestamp: new Date(),
+							session_id: "current_session",
+							vector_similarity: null as AnyObject,
+							storage_backend: "cloudflare_kv_d1"
+						}
+					};
+
+					switch (action) {
+						case "store":
+							const new_memory_id = `mem_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+							const memory_data = {
+								memory_id: new_memory_id,
+								content,
+								tags,
+								context,
+								created_at: new Date().toISOString(),
+								updated_at: new Date().toISOString(),
+								access_count: 0
+							};
+
+							// Store in KV Storage
+							await env.KV_STORAGE.put(
+								`memory:${new_memory_id}`,
+								JSON.stringify(memory_data),
+								{ expirationTtl: 86400 * 30 } // 30 days
+							);
+
+							// Store metadata in D1 Database
+							await env.D1_DATABASE.prepare(
+								`INSERT OR REPLACE INTO memories (id, tags, context_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`
+							).bind(
+								new_memory_id,
+								tags.join(","),
+								JSON.stringify(context),
+								memory_data.created_at,
+								memory_data.updated_at
+							).run();
+
+							result.data = {
+								memory_id: new_memory_id,
+								content_length: content?.length || 0,
+								tags,
+								context,
+								stored_at: memory_data.created_at,
+								storage_confirmed: true
+							};
+							break;
+						
+						case "retrieve":
+							if (!memory_id) {
+								result.success = false;
+								result.data = { error: "Memory ID required for retrieval" };
+								break;
+							}
+
+							// Retrieve from KV Storage
+							const stored_memory = await env.KV_STORAGE.get(`memory:${memory_id}`, "json");
+							if (!stored_memory) {
+								result.success = false;
+								result.data = { error: "Memory not found" };
+								break;
+							}
+
+							// Update access count in D1
+							await env.D1_DATABASE.prepare(
+								`UPDATE memories SET access_count = access_count + 1, last_accessed = ? WHERE id = ?`
+							).bind(new Date().toISOString(), memory_id).run();
+
+							result.data = stored_memory;
+							break;
+						
+						case "search":
+							if (!query) {
+								result.success = false;
+								result.data = { error: "Search query required" };
+								break;
+							}
+
+							// Search in D1 Database by tags and context
+							const search_results = await env.D1_DATABASE.prepare(
+								`SELECT id, tags, context_json, created_at FROM memories WHERE tags LIKE ? OR context_json LIKE ? ORDER BY created_at DESC LIMIT 10`
+							).bind(`%${query}%`, `%${query}%`).all();
+
+							// Retrieve full content from KV for matching memories
+							const memories = [] as AnyArray;
+							for (const row of search_results.results || []) {
+								const memory_content = await env.KV_STORAGE.get(`memory:${(row as any).id}`, "json");
+								if (memory_content) {
+									memories.push({
+										...memory_content,
+										similarity: Math.random() * 0.8 + 0.2, // Simulated similarity for now
+										matched_fields: ["tags", "context"]
+									});
+								}
+							}
+
+							result.data = memories;
+							result.metadata.vector_similarity = false; // Not implemented yet
+							(result.metadata as any).search_method = "text_matching";
+							break;
+						
+						case "delete":
+							if (!memory_id) {
+								result.success = false;
+								result.data = { error: "Memory ID required for deletion" };
+								break;
+							}
+
+							// Delete from both KV and D1
+							await env.KV_STORAGE.delete(`memory:${memory_id}`);
+							await env.D1_DATABASE.prepare(
+								`DELETE FROM memories WHERE id = ?`
+							).bind(memory_id).run();
+
+							result.data = {
+								deleted_memory_id: memory_id,
+								cleanup_performed: true,
+								deleted_from: ["kv_storage", "d1_database"]
+							};
+							break;
 					}
-				};
 
-				switch (action) {
-					case "store":
-						result.data = {
-							memory_id: `mem_${Date.now()}`,
-							content: content?.substring(0, 100) + "...",
-							tags,
-							context,
-							embedding_generated: true,
-							stored_at: new Date()
-						};
-						break;
-					
-					case "retrieve":
-						result.data = {
-							memory_id,
-							content: "Retrieved memory content based on ID",
-							tags: ["retrieved", "persistent"],
-							created_at: new Date(Date.now() - 86400000),
-							access_count: Math.floor(Math.random() * 10)
-						};
-						break;
-					
-					case "search":
-						result.data = Array.from({ length: 3 }, (_, i) => ({
-							memory_id: `mem_${i}`,
-							content: `Memory ${i + 1} matching "${query}"`,
-							similarity: Math.random() * 0.8 + 0.2,
-							tags: ["relevant", "semantic"],
-							created_at: new Date(Date.now() - Math.random() * 86400000 * 7)
-						}));
-						result.metadata.vector_similarity = true;
-						break;
-					
-					case "delete":
-						result.data = {
-							deleted_memory_id: memory_id,
-							cleanup_performed: true
-						};
-						break;
+					return {
+						content: [{
+							type: "text",
+							text: `Persistent Memory Engine (${action}):\n\n${JSON.stringify(result, null, 2)}`
+						}]
+					};
+				} catch (error) {
+					return {
+						content: [{
+							type: "text",
+							text: `Persistent Memory Engine Error:\n\n${JSON.stringify({ action, error: (error as Error).message }, null, 2)}`
+						}]
+					};
 				}
-
-				return {
-					content: [{
-						type: "text",
-						text: `Persistent Memory Engine (${action}):\n\n${JSON.stringify(result, null, 2)}`
-					}]
-				};
 			}
 		);
 
-		// 13. dynamic_context_manager - Based on knowledge graph + OpenMemory
+		// 13. dynamic_context_manager - Real KV Storage implementation for context persistence
 		this.server.tool(
 			"dynamic_context_manager",
 			{
@@ -700,75 +946,133 @@ export class CognMCP extends McpAgent {
 				timeframe: z.enum(["current", "recent", "historical"]).default("current"),
 			},
 			async ({ action, session_id, context_data, timeframe }) => {
-				const current_session = session_id || "default_session";
-				const result = {
-					action,
-					session_id: current_session,
-					data: null,
-					evolution_analysis: null,
-					timestamp: new Date()
-				};
+				try {
+					const env = this.env as Env;
+					const current_session = session_id || "default_session";
+					const result = {
+						action,
+						session_id: current_session,
+						data: null as AnyObject,
+						evolution_analysis: null as AnyObject,
+						timestamp: new Date(),
+						storage_backend: "cloudflare_kv"
+					};
 
-				switch (action) {
-					case "save_context":
-						result.data = {
-							saved_context: {
+					switch (action) {
+						case "save_context":
+							const context_to_save = {
+								session_id: current_session,
 								user_preferences: context_data?.preferences || {},
 								current_project: context_data?.project || "unknown",
 								recent_activities: context_data?.activities || [],
-								learned_patterns: ["code_style", "naming_conventions", "architecture_preferences"]
-							},
-							persistence_confirmed: true,
-							cross_session_enabled: true
-						};
-						break;
-					
-					case "load_context":
-						result.data = {
-							loaded_context: {
-								user_id: "user_123",
-								preferences: {
-									code_language: "typescript",
-									ai_reasoning_level: "advanced",
-									auto_optimizations: true
-								},
-								project_memory: {
-									current_focus: "mcp_server_development",
-									recent_files: ["src/index.ts", "package.json", "README.md"],
-									patterns_learned: ["functional_programming", "mcp_patterns"]
-								},
-								session_history: {
-									total_sessions: Math.floor(Math.random() * 100),
-									last_active: new Date(Date.now() - 3600000),
-									continuous_learning: true
-								}
-							}
-						};
-						break;
-					
-					case "analyze_evolution":
-						result.evolution_analysis = {
-							context_changes: {
-								skills_improved: ["reasoning", "code_analysis", "pattern_recognition"],
-								preferences_evolved: ["more_detailed_analysis", "structured_output"],
-								knowledge_accumulated: {
-									projects: Math.floor(Math.random() * 20),
-									code_patterns: Math.floor(Math.random() * 50),
-									architectural_insights: Math.floor(Math.random() * 30)
-								}
-							},
-							learning_trajectory: "positive",
-							personalization_score: Math.random() * 100
-						};
-						break;
-				}
+								learned_patterns: ["code_style", "naming_conventions", "architecture_preferences"],
+								saved_at: new Date().toISOString(),
+								timeframe
+							};
 
-				return {
-					content: [{
-						type: "text",
-						text: `Dynamic Context Manager (${action}):\n\n${JSON.stringify(result, null, 2)}`
-					}]
-				};
+							// Store in KV Storage with session-based key
+							await env.KV_STORAGE.put(
+								`context:${current_session}`,
+								JSON.stringify(context_to_save),
+								{ expirationTtl: 86400 * 90 } // 90 days
+							);
+
+							result.data = {
+								saved_context: context_to_save,
+								persistence_confirmed: true,
+								cross_session_enabled: true,
+								storage_key: `context:${current_session}`
+							};
+							break;
+						
+						case "load_context":
+							// Load from KV Storage
+							const stored_context = await env.KV_STORAGE.get(`context:${current_session}`, "json");
+							
+							if (stored_context) {
+								result.data = {
+									loaded_context: stored_context,
+									storage_found: true,
+									last_updated: (stored_context as any).saved_at
+								};
+							} else {
+								// Return default context if none exists
+								result.data = {
+									loaded_context: {
+										session_id: current_session,
+										user_preferences: {
+											code_language: "typescript",
+											ai_reasoning_level: "advanced",
+											auto_optimizations: true
+										},
+										current_project: "zeo_mcp_server",
+										recent_activities: [],
+										learned_patterns: [],
+										created_at: new Date().toISOString()
+									},
+									storage_found: false,
+									initialized_default: true
+								};
+							}
+							break;
+
+						case "merge_contexts":
+							// Load existing context and merge with new data
+							const existing_context = await env.KV_STORAGE.get(`context:${current_session}`, "json");
+							const merged_context = {
+								...(existing_context as any || {}),
+								...(context_data || {}),
+								merged_at: new Date().toISOString(),
+								merge_count: (existing_context as any)?.merge_count + 1 || 1
+							};
+
+							await env.KV_STORAGE.put(
+								`context:${current_session}`,
+								JSON.stringify(merged_context),
+								{ expirationTtl: 86400 * 90 }
+							);
+
+							result.data = {
+								merged_context,
+								merge_successful: true
+							};
+							break;
+						
+						case "analyze_evolution":
+							// Load historical context data for analysis
+							const context_history = await env.KV_STORAGE.get(`context:${current_session}`, "json");
+							
+							result.evolution_analysis = {
+								context_changes: {
+									skills_improved: ["reasoning", "code_analysis", "pattern_recognition"],
+									preferences_evolved: ["more_detailed_analysis", "structured_output"],
+									knowledge_accumulated: {
+										projects: (context_history as any)?.recent_activities?.length || 0,
+										code_patterns: (context_history as any)?.learned_patterns?.length || 0,
+										sessions_tracked: 1
+									}
+								},
+								learning_trajectory: "positive",
+								personalization_score: context_history ? 85 : 15,
+								data_available: !!context_history
+							};
+							break;
+					}
+
+					return {
+						content: [{
+							type: "text",
+							text: `Dynamic Context Manager (${action}):\n\n${JSON.stringify(result, null, 2)}`
+						}]
+					};
+				} catch (error) {
+					return {
+						content: [{
+							type: "text",
+							text: `Dynamic Context Manager Error:\n\n${JSON.stringify({ action, error: (error as Error).message }, null, 2)}`
+						}]
+					};
+				}
 			}
 		);
 
@@ -788,9 +1092,9 @@ export class CognMCP extends McpAgent {
 			async ({ action, entity_type, entity_name, relationship_type, source_entity, target_entity, query, depth }) => {
 				const result = {
 					action,
-					graph_data: null,
-					relationships: [],
-					insights: null,
+					graph_data: null as AnyObject,
+					relationships: [] as AnyArray,
+					insights: null as AnyObject,
 					timestamp: new Date()
 				};
 
@@ -872,10 +1176,10 @@ export class CognMCP extends McpAgent {
 					action,
 					data_sources,
 					time_window,
-					insights: null,
-					trends: null,
-					recommendations: [],
-					knowledge_compression: null,
+					insights: null as AnyObject,
+					trends: null as AnyObject,
+					recommendations: [] as AnyArray,
+					knowledge_compression: null as AnyObject,
 					timestamp: new Date()
 				};
 
@@ -980,9 +1284,9 @@ export class CognMCP extends McpAgent {
 					target,
 					action,
 					metrics_analyzed: metrics,
-					current_performance: {},
-					optimizations: [],
-					improvements: {},
+					current_performance: {} as AnyObject,
+					optimizations: [] as AnyArray,
+					improvements: {} as AnyObject,
 					timestamp: new Date()
 				};
 
@@ -1076,7 +1380,7 @@ export class CognMCP extends McpAgent {
 					action,
 					workflow_name,
 					success: true,
-					execution_data: null,
+					execution_data: null as AnyObject,
 					timestamp: new Date()
 				};
 
@@ -1162,9 +1466,9 @@ export class CognMCP extends McpAgent {
 					target: target || "system",
 					scan_type,
 					security_score: Math.random() * 100,
-					findings: [],
-					recommendations: [],
-					compliance_status: null,
+					findings: [] as AnyArray,
+					recommendations: [] as AnyArray,
+					compliance_status: null as AnyObject,
 					timestamp: new Date()
 				};
 
@@ -1279,9 +1583,9 @@ export class CognMCP extends McpAgent {
 				const result = {
 					action,
 					language,
-					output: null,
-					suggestions: [],
-					quality_score: null,
+					output: null as AnyObject,
+					suggestions: [] as AnyArray,
+					quality_score: null as AnyObject,
 					timestamp: new Date()
 				};
 
@@ -1383,9 +1687,9 @@ export class CognMCP extends McpAgent {
 					action,
 					script_type,
 					target_platform,
-					output: null,
-					ai_enhancements: [],
-					automation_potential: null,
+					output: null as AnyObject,
+					ai_enhancements: [] as AnyArray,
+					automation_potential: null as AnyObject,
 					timestamp: new Date()
 				};
 
@@ -1487,10 +1791,10 @@ export class CognMCP extends McpAgent {
 			async ({ action, domain_context, data_flow, type_requirements, code_sample }) => {
 				const result = {
 					action,
-					functional_design: null,
-					type_safety: null,
-					recommendations: [],
-					paradigm_benefits: [],
+					functional_design: null as AnyObject,
+					type_safety: null as AnyObject,
+					recommendations: [] as AnyArray,
+					paradigm_benefits: [] as AnyArray,
 					timestamp: new Date()
 				};
 
@@ -1626,7 +1930,7 @@ export class CognMCP extends McpAgent {
 					const idea_variation = (Math.random() * 0.2) - 0.1; // ±0.1 variation
 					const final_confidence = Math.max(0.3, Math.min(0.95, base_confidence - constraint_penalty + idea_variation));
 					
-					const idea = {
+					const idea: any = {
 						idea_id: `${creativity_mode}_${i + 1}`,
 						concept_seed: seed_concept,
 						creative_approach: creativity_mode,
@@ -1717,7 +2021,7 @@ export class CognMCP extends McpAgent {
 				const semantic_factor = preserve_intent ? 1.0 : 0.8;
 				const final_confidence = translation_confidence * semantic_factor;
 				
-				const translation_result = {
+				const translation_result: any = {
 					bridge_metadata: {
 						source_tool: source_tool_name,
 						target_format: target_format,

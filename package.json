@@ -1,7 +1,7 @@
 {
-  "name": "cogn-unified-mcp-server",
+  "name": "zeo-unified-mcp-server",
   "version": "1.0.0",
-  "description": "Cogn - Advanced AI-powered MCP server with 20 specialized tools for development assistance",
+  "description": "Zeo - Advanced AI-powered MCP server with 23 specialized tools for development assistance",
   "main": "src/index.ts",
   "scripts": {
     "dev": "wrangler dev",
@@ -9,8 +9,8 @@
     "deploy:staging": "wrangler deploy --env staging",
     "start": "wrangler dev",
     "test": "wrangler dev --test",
-    "db:migrate": "wrangler d1 execute cogn-mcp-db --file=schema.sql",
-    "db:reset": "wrangler d1 execute cogn-mcp-db --command=\"DROP TABLE IF EXISTS file_knowledge; DROP TABLE IF EXISTS file_operations; DROP TABLE IF EXISTS command_executions; DROP TABLE IF EXISTS repository_analyses; DROP TABLE IF EXISTS strategic_insights; DROP TABLE IF EXISTS user_sessions; DROP TABLE IF EXISTS tool_usage;\" && npm run db:migrate",
+    "db:migrate": "wrangler d1 execute zeo-mcp-db --file=schema.sql",
+    "db:reset": "wrangler d1 execute zeo-mcp-db --command=\"DROP TABLE IF EXISTS file_knowledge; DROP TABLE IF EXISTS file_operations; DROP TABLE IF EXISTS command_executions; DROP TABLE IF EXISTS repository_analyses; DROP TABLE IF EXISTS strategic_insights; DROP TABLE IF EXISTS user_sessions; DROP TABLE IF EXISTS tool_usage;\" && npm run db:migrate",
     "logs": "wrangler tail",
     "lint": "eslint src/ --ext .ts,.js",
     "type-check": "tsc --noEmit",
@@ -32,6 +32,8 @@
   "author": "Gustavo Mendes e Silva",
   "license": "MIT",
   "dependencies": {
+    "@anthropic-ai/claude-code": "^1.0.17",
+    "@anthropic-ai/sdk": "^0.53.0",
     "@modelcontextprotocol/sdk": "^1.12.1",
     "agents": "^0.0.94",
     "zod": "^3.25.51"
@@ -50,10 +52,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/myselfgus/cogn_mcp_remote.git"
+    "url": "https://github.com/myselfgus/zeo_mcp_remote.git"
   },
   "bugs": {
-    "url": "https://github.com/myselfgus/cogn_mcp_remote/issues"
+    "url": "https://github.com/myselfgus/zeo_mcp_remote/issues"
   },
-  "homepage": "https://github.com/myselfgus/cogn_mcp_remote#readme"
+  "homepage": "https://github.com/myselfgus/zeo_mcp_remote#readme"
 }
