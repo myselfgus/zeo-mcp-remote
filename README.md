@@ -1,12 +1,12 @@
 # 🚀 Zeo MCP Remote
 
-**Zero Trust MCP Server - 21 AI-powered tools for Claude.ai integration**
+**Zero Trust MCP Server - 23 AI-powered tools for Claude.ai integration**
 
-Production-ready Model Context Protocol (MCP) server running on Cloudflare Workers with 21 specialized tools across 7 categories.
+Production-ready Model Context Protocol (MCP) server running on Cloudflare Workers with 23 specialized tools across 8 categories.
 
 ## ✨ Features
 
-### 🛠️ **21 Specialized Tools**
+### 🛠️ **23 Specialized Tools**
 
 #### 🧠 **Reasoning & Intelligence (4 tools)**
 - `unified_reasoner` - Multi-strategy AI reasoning (Beam Search, MCTS)
@@ -42,6 +42,10 @@ Production-ready Model Context Protocol (MCP) server running on Cloudflare Worke
 - `dev_assistant` - AI-powered development assistance
 - `genai_scripter` - AI script and template generation
 - `functional_architect` - Functional programming design patterns
+
+#### 🆕 **Creative Intelligence (2 tools)**
+- `ideation_engine` - Pure creative brainstorming with multiple thinking modes
+- `implementation_bridge` - Composable translation from any tool output to code
 
 ### 🏗️ **Architecture**
 
@@ -86,7 +90,7 @@ Required secrets:
 
 ## 📊 Status
 
-- ✅ **Production Ready**: All 21 tools implemented and tested
+- ✅ **Production Ready**: All 23 tools implemented and tested
 - ✅ **Zero Trust**: Integrated with Cloudflare Zero Trust
 - ✅ **Scalable**: Edge computing with global distribution
 - ✅ **Secure**: OAuth authentication and encrypted sessions
